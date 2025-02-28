@@ -121,6 +121,40 @@ const Chat = () => {
       setShowAuthMessage(false)
       return
     }
+    const msalConfig = {
+      auth: {
+        clientId: "YOUR_CLIENT_ID",
+        authority: "https://login.microsoftonline.com/YOUR_TENANT_ID",
+        redirectUri: "YOUR_REDIRECT_URI"
+      },
+      cache: {
+        cacheLocation: "localStorage", // This can be "sessionStorage" or "localStorage"
+        storeAuthStateInCookie: true // Set to true if you are having issues on IE11 or Edge
+      }
+    };
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+    msalInstance.loginPopup().then(response => {
+    const account = response.account;
+    const accessToken = response.accessToken;
+  
+    // Fetch user's groups
+    fetch("https://graph.microsoft.com/v1.0/me/memberOf", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      const groups = data.value.map(group => group.displayName);
+      if (groups.includes("YOUR_SECURITY_GROUP_NAME")) {
+        // User is authorized
+        console.log("User is authorized.");
+      } else {
+        // User is not authorized
+        alert("You do not have access to this application.");
+      }
+    });
     const userInfoList = await getUserInfo()
     if (userInfoList.length === 0 && window.location.hostname !== '127.0.0.1') {
       setShowAuthMessage(true)
