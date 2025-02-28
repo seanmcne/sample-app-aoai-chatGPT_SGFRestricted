@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useContext, useLayoutEffect } from 'react'
 import { CommandBarButton, IconButton, Dialog, DialogType, Stack } from '@fluentui/react'
 import { SquareRegular, ShieldLockRegular, ErrorCircleRegular } from '@fluentui/react-icons'
+import * as msal from "@azure/msal-browser";
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -133,35 +134,40 @@ const Chat = () => {
       }
     };
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-    msalInstance.loginPopup().then(response => {
-    const account = response.account;
-    const accessToken = response.accessToken;
   
-    // Fetch user's groups
-    fetch("https://graph.microsoft.com/v1.0/me/memberOf", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      const groups = data.value.map(group => group.displayName);
+    try {
+      const response = await msalInstance.loginPopup();
+      const account = response.account;
+      const accessToken = response.accessToken;
+  
+      const graphResponse = await fetch("https://graph.microsoft.com/v1.0/me/memberOf", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+  
+      const data = await graphResponse.json();
+      const groups = data.value.map((group: any) => group.displayName);
+  
       if (groups.includes("YOUR_SECURITY_GROUP_NAME")) {
-        // User is authorized
         console.log("User is authorized.");
       } else {
-        // User is not authorized
         alert("You do not have access to this application.");
       }
-    });
+  
+      const userInfoList = await getUserInfo();
+      setShowAuthMessage(userInfoList.length === 0 && window.location.hostname !== '127.0.0.1');
+    } 
+    catch (error) {
+      console.error("Error during MSAL authentication", error);
+    }
     const userInfoList = await getUserInfo()
     if (userInfoList.length === 0 && window.location.hostname !== '127.0.0.1') {
       setShowAuthMessage(true)
     } else {
       setShowAuthMessage(false)
     }
-  }
+  };
 
   let assistantMessage = {} as ChatMessage
   let toolMessage = {} as ChatMessage
